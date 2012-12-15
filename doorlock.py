@@ -31,7 +31,7 @@ def toggleDoor():
 	GPIO.output(GPIO_PIN, GPIO.LOW)
 
 def checkCard(tagID):
-	cursor.execute("SELECT * FROM `rfid` WHERE `card_id`=%(cardid)s", {'cardid': tagID})
+	cursor.execute("SELECT * FROM `rfid` WHERE `card_id`=%(tagID)s", {'tagID': tagID})
 	result = cursor.fetchone()
 	if result:
 		if result['enabled']:
