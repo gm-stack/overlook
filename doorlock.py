@@ -58,7 +58,8 @@ for wav in wavlist:
 ping = pygame.mixer.Sound("Ping.wav")
 ping.play()
 
-alert_command = shlex.split(config.get("alert","command"))
+ALERT_COMMAND = shlex.split(config.get("alert","command"))
+ALERT_PRESS_TIME = config.getint("alert","presstime")
 
 doorTime = 0.0
 fridgebell = pygame.mixer.Sound("bell.wav")
@@ -67,10 +68,16 @@ def doorThread():
 	global doorTime
 	fridgeTime = 0
 	doorPress = 0
+	alertSubproc = None
 	while True:
 		if GPIO.input(EXIT_PIN):
 			doorPress += 1
 			print "doorPress is %i" % doorPress
+			if doorPress == ALERT_PRESS_TIME:
+				if alertSubproc:
+					alertSubproc.kill()
+				else:
+					alertSubproc = subprocess.Popen(ALERT_COMMAND, stdout=subprocess.PIPE, shell=False)
 			if not ((time.time() - doorTime) < 0):
 				doorTime = time.time() + 2
 				print "button pushed, unlocking door"
