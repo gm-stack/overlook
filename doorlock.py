@@ -78,7 +78,6 @@ def doorThread():
 					alertSubproc.kill()
 				else:
 					ping.play()
-					ping.play()
 					alertSubproc = subprocess.Popen(ALERT_COMMAND, stdout=subprocess.PIPE, shell=False)
 			if not ((time.time() - doorTime) < 0):
 				doorTime = time.time() + 2
