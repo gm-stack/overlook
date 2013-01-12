@@ -75,6 +75,7 @@ def doorThread():
 			if doorPress == ALERT_PRESS_TIME:
 				if alertSubproc:
 					alertSubproc.kill()
+					alertSubproc = None
 				else:
 					ping.play()
 					alertSubproc = subprocess.Popen(ALERT_COMMAND, stdout=subprocess.PIPE, shell=False)
