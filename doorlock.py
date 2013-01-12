@@ -11,6 +11,8 @@ import pygame
 import pyaudio, wave
 import os
 import random
+import subprocess
+import shlex
 from ircasync import *
 from rdm880 import *
 
@@ -56,6 +58,7 @@ for wav in wavlist:
 ping = pygame.mixer.Sound("Ping.wav")
 ping.play()
 
+alert_command = shlex.split(config.get("alert","command"))
 
 doorTime = 0.0
 fridgebell = pygame.mixer.Sound("bell.wav")
@@ -63,14 +66,20 @@ fridgebell_playing = False
 def doorThread():
 	global doorTime
 	fridgeTime = 0
+	doorPress = 0
 	while True:
-		if GPIO.input(EXIT_PIN) and not ((time.time() - doorTime) < 0):
-			doorTime = time.time() + 2
-			print "button pushed, unlocking door"
-			try:
-				irc.tell(channel, "Unlocking door for exiting user")
-			except:
-				pass
+		if GPIO.input(EXIT_PIN):
+			doorPress += 1
+			print "doorPress is %i" % doorPress
+			if not ((time.time() - doorTime) < 0):
+				doorTime = time.time() + 2
+				print "button pushed, unlocking door"
+				try:
+					irc.tell(channel, "Unlocking door for exiting user")
+				except:
+					pass
+		else:
+			doorPress = 0	
 		if (time.time() - doorTime) < 0:
 			GPIO.output(LOCK_PIN, GPIO.HIGH)
 		else:
