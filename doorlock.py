@@ -72,7 +72,6 @@ def doorThread():
 	while True:
 		if GPIO.input(EXIT_PIN):
 			doorPress += 1
-			print "doorPress is %i" % doorPress
 			if doorPress == ALERT_PRESS_TIME:
 				if alertSubproc:
 					alertSubproc.kill()
