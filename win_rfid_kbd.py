@@ -46,5 +46,9 @@ while True:
 		time.sleep(0.1)
 	except KeyboardInterrupt:
 		sys.exit()
+	except SerialException:
+		print "serial error, re-opening"
+		time.sleep(1)
+		io = Serial('COM4', 9600, timeout=1)
 	except:
 		print sys.exc_info()[0]
