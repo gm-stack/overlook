@@ -47,8 +47,8 @@ while True:
 				time.sleep(0.1)
 			except KeyboardInterrupt:
 				sys.exit()
-			except serial.SerialException:
-				print "serial error, re-opening"
-				break
 			except:
 				print sys.exc_info()[0]
+				break;
+	except:
+		pass
