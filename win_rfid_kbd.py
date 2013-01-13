@@ -22,7 +22,7 @@ shell = win32com.client.Dispatch("WScript.Shell")
 
 def checkCard(cardid_hex):
 	print "card id is " + cardid_hex
-	cursor.execute("SELECT * FROM `rfid` WHERE `card_id`=%(cardid)s", {'cardid': cardid_hex})
+	cursor.execute("SELECT `username` FROM `rfid` WHERE `card_id`=%(cardid)s", {'cardid': cardid_hex})
 	result = cursor.fetchone()
 	print result
 	shell.SendKeys(result['username'] + "{enter}")
