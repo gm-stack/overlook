@@ -49,6 +49,9 @@ while True:
 	except SerialException:
 		print "serial error, re-opening"
 		time.sleep(1)
-		io = Serial('COM4', 9600, timeout=1)
+		try:
+			io = Serial('COM4', 9600, timeout=1)
+		except:
+			pass
 	except:
 		print sys.exc_info()[0]
