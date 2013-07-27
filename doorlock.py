@@ -42,17 +42,21 @@ cursor = conn.cursor()
 print "cards db opened"
 opentime = config.getint("gpio","opentime")
 
-pygame.mixer.pre_init(44100,-16,2,256)
-pygame.mixer.init()
-
-sounds = {}
-wavlist = os.listdir("sounds")
-for wav in wavlist:
-	if wav.endswith(".wav"):
-		sounds[wav] = pygame.mixer.Sound("sounds/" + wav)
-
-ping = pygame.mixer.Sound("Ping.wav")
-ping.play()
+try:
+	pygame.mixer.pre_init(44100,-16,2,256)
+	pygame.mixer.init()
+	
+	sounds = {}
+	wavlist = os.listdir("sounds")
+	for wav in wavlist:
+		if wav.endswith(".wav"):
+			sounds[wav] = pygame.mixer.Sound("sounds/" + wav)
+	
+	ping = pygame.mixer.Sound("Ping.wav")
+	ping.play()
+except:
+	print "Error initializing sound"
+	#todo: actually print the error itself
 
 ALERT_COMMAND = shlex.split(config.get("alert","command"))
 ALERT_PRESS_TIME = config.getint("alert","presstime")
@@ -73,7 +77,10 @@ def doorThread():
 					alertSubproc.kill()
 					alertSubproc = None
 				else:
-					ping.play()
+					try:
+						ping.play()
+					except:
+						print "sound play failed"
 					alertSubproc = subprocess.Popen(ALERT_COMMAND, stdout=subprocess.PIPE, shell=False)
 			if not ((time.time() - doorTime) < 0):
 				doorTime = time.time() + 2
@@ -93,31 +100,49 @@ def doorThread():
 			print "fridge has been open for %f seconds" % (fridgeTime/20.0)
 			if fridgeTime == 30*20:
 				print "playing bell"
-				fridgebell.play(loops=-1)
+				try:
+					fridgebell.play(loops=-1)
+				except:
+					print "sound play failed"
 		else:
 			fridgeTime = 0.0
-			fridgebell.stop()
+			try:
+				fridgebell.stop()
+			except:
+				print "sound stop failed"
 		time.sleep(0.05)
 thread.start_new_thread(doorThread, ())
+
 
 irc_connected = False
 def handle_welcome(_,__):
 	global irc_connected
 	irc_connected = True
 
-channel = config.get("irc","channel")
-irc = IRC(nick=config.get("irc","ircnick"), start_channels=[channel], version="1.0")
-irc.make_conn(config.get("irc","ircserver"), config.getint("irc","ircport"))
-irc.bind(handle_welcome, RPL_WELCOME)
+try:
+	channel = config.get("irc","channel")
+	irc = IRC(nick=config.get("irc","ircnick"), start_channels=[channel], version="1.0")
+	irc.make_conn(config.get("irc","ircserver"), config.getint("irc","ircport"))
+	irc.bind(handle_welcome, RPL_WELCOME)
+except:
+	print "IRC start failed"
+
 thread.start_new_thread(asyncore.loop, ()) # i really should work the serial bit into asyncore, shouldn't i?
+
+soundList = []
 
 def checkCard(tagID):
 	global doorTime
+	global soundList
 	cursor.execute("SELECT `enabled`,`username`,`description` FROM `rfid` WHERE `card_id`=?", (tagID,))
 	result = cursor.fetchone()
 	if result:
 		if result[0]:
-			random.choice(sounds.values()).play()
+			if not soundList:
+				print "creating new soundList"
+				soundList = sounds.keys()
+				random.shuffle(soundList)
+			sounds[soundList.pop()].play()
 			print "valid card, unlocking door for %s" % result[1]
 			try:
 				irc.tell(channel, ("Unlocking door for user %s with a %s" % (result[1], result[2])).encode("ascii",errors="ignore"))
