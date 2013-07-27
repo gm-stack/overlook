@@ -2,3 +2,4 @@
 *.pyo
 doorlock.ini
 *.wav
+cards.db

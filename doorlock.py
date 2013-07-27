@@ -3,7 +3,6 @@
 import serial
 import RPi.GPIO as GPIO
 import time, io, datetime
-import MySQLdb, MySQLdb.cursors
 import ConfigParser
 import asyncore
 import thread
@@ -15,6 +14,7 @@ import subprocess
 import shlex
 from ircasync import *
 from rdm880 import *
+import sqlite3
 
 config = ConfigParser.ConfigParser()
 config.read("doorlock.ini")
@@ -36,14 +36,10 @@ GPIO.setup(FRIDGE_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 ser = serial.Serial(config.get("rfid","port"), config.getint("rfid","baud"), timeout=1)
 
-print "connecting to MySQL"
-conn = MySQLdb.connect(	host=config.get("mysql","host"),
-			user=config.get("mysql","user"),
-			passwd=config.get("mysql","passwd"),
-			db=config.get("mysql","db"), 
-			cursorclass=MySQLdb.cursors.DictCursor, charset='utf8')
+print "opening cards db"
+conn = sqlite3.connect("cards.db")
 cursor = conn.cursor()
-print "MySQL connected"
+print "cards db opened"
 opentime = config.getint("gpio","opentime")
 
 pygame.mixer.pre_init(44100,-16,2,256)
@@ -117,21 +113,21 @@ thread.start_new_thread(asyncore.loop, ()) # i really should work the serial bit
 
 def checkCard(tagID):
 	global doorTime
-	cursor.execute("SELECT * FROM `rfid` WHERE `card_id`=%(cardid)s", {'cardid': tagID})
+	cursor.execute("SELECT `enabled`,`username`,`description` FROM `rfid` WHERE `card_id`=?", (tagID,))
 	result = cursor.fetchone()
 	if result:
-		if result['enabled']:
+		if result[0]:
 			random.choice(sounds.values()).play()
-			print "valid card, unlocking door for %s" % result['username']
+			print "valid card, unlocking door for %s" % result[1]
 			try:
-				irc.tell(channel, ("Unlocking door for user %s with a %s" % (result['username'], result['description'])).encode("ascii",errors="ignore"))
+				irc.tell(channel, ("Unlocking door for user %s with a %s" % (result[1], result[2])).encode("ascii",errors="ignore"))
 			except:
 				print sys.exc_info()
-			if result['soundfile']:
-				print "soundfile is %s" % result['soundfile']
+			#if result['soundfile']:
+			#	print "soundfile is %s" % result['soundfile']
 			doorTime = time.time() + opentime
 		else:
-			print "usage of disabled card %s for user %s" % (result['card_id'], result['username'])
+			print "usage of disabled card %s for user %s" % (tagID, result[1])
 	else:
 		print "unknown card %s" % tagID
 		try:
@@ -154,29 +150,4 @@ while True:
 	else:
 		prevcardid = None
 	time.sleep(0.1)
-	#data = ser.read(14)
-	#if len(data) == 14:
-	#	if ord(data[0]) != 2:
-	#		print "invalid header"
-	#		continue
-	#	if ord(data[13]) != 3:
-	#		print "invalid footer"
-	#		continue
-	#	tagID = data[1:11]
-	#	checksum = int(data[11:13],16)
-	#	databytes = []
-	#	for i in range(0,10,2):
-	#		tagbyte = tagID[i:i+2]
-	#		databytes += [int(tagbyte,16)]
-	#	calcchecksum = 0
-	#	for byte in databytes:
-	#		calcchecksum = calcchecksum ^ byte
-	#	if (calcchecksum != checksum):
-	#		print "invalid checksum"
-	#		continue
-	#	print "got card, ID is %s" % databytes
-	#	if tagID != "0000000000": # RFID reader sometimes spits out all zeros for some reason, but this passes checksum because 0 ^ 0 = 0
-	#		checkCard(tagID)
-	#else:
-	#	if len(data) > 0: print "invalid read len %i" % len(data)
 
