@@ -62,10 +62,6 @@ def main():
 	elif options.hex:
 		base = 16
 		
-	checkCard((12, 23, 45, 56), base, options.prefix, options.suffix)
-	
-	return
-	
 	prevcardid = None
 	while True:
 		try:
