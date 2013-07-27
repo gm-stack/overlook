@@ -124,7 +124,7 @@ def checkCard(tagID):
 			random.choice(sounds.values()).play()
 			print "valid card, unlocking door for %s" % result['username']
 			try:
-				irc.tell(channel, ("Unlocking door for user %s" % result['username']).encode("ascii",errors="ignore"))
+				irc.tell(channel, ("Unlocking door for user %s with a %s" % (result['username'], result['description'])).encode("ascii",errors="ignore"))
 			except:
 				print sys.exc_info()
 			if result['soundfile']:
@@ -134,6 +134,10 @@ def checkCard(tagID):
 			print "usage of disabled card %s for user %s" % (result['card_id'], result['username'])
 	else:
 		print "unknown card %s" % tagID
+		try:
+			irc.tell(channel, ("Unknown card %s" % tagID).encode("ascii",errors="ignore"))
+		except:
+			print sys.exc_info()
 
 prevcardid = None
 while True:
