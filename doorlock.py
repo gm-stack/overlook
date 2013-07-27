@@ -27,11 +27,13 @@ GPIO.setup(LOCK_PIN, GPIO.OUT)
 GPIO.output(LOCK_PIN, GPIO.LOW)
 
 EXIT_PIN = config.getint("gpio","exit_pin")
+AUX_PIN = config.getint("gpio", "aux_pin")
 FRIDGE_PIN = config.getint("gpio","fridge_pin")
 
 GPIO.setmode(GPIO.BOARD)
 GPIO.setwarnings(False)
 GPIO.setup(EXIT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+GPIO.setup(AUX_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 GPIO.setup(FRIDGE_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 ser = serial.Serial(config.get("rfid","port"), config.getint("rfid","baud"), timeout=1)
@@ -54,20 +56,73 @@ try:
 	
 	ping = pygame.mixer.Sound("Ping.wav")
 	ping.play()
+	
+	tea_sounds = {}
+	tea_wavlist = os.listdir("ingress")
+	for snd in tea_wavlist:
+		if snd.endswith(".ogg"):
+			snd_name = snd
+			if snd_name.startswith("speech_number_"):
+				snd_name = int(snd_name[14:17])
+			else:
+				snd_name = snd_name[7:-4]
+			tea_sounds[snd_name] = pygame.mixer.Sound("ingress/" + snd)
+	ping.play()
 except:
 	print "Error initializing sound"
 	#todo: actually print the error itself
 
 ALERT_COMMAND = shlex.split(config.get("alert","command"))
 ALERT_PRESS_TIME = config.getint("alert","presstime")
+AUX_PRESS_TIME = 10
+
+def playwait(sound):
+	tea_sounds[sound].play()
+	while pygame.mixer.get_busy():
+		time.sleep(0.1)
+
+def saytime(remaintime):
+	minutes = int(remaintime/60)
+	seconds = remaintime % 60
+	if remaintime == 60:
+		seconds = 60
+		minutes = 0
+	if minutes:
+		playwait(minutes)
+		playwait('minutes')
+	if seconds:
+		playwait(seconds)
+		playwait('seconds')
+	if minutes or seconds:
+		playwait('remaining')
+	else:
+		playwait('complete')
+
+def timerThread():
+	starttime = int(time.time())
+	duration = 180
+	remaintime = duration
+	while runTimer and remaintime > 0:
+		elapsed = (int(time.time())-starttime)
+		remaintime = duration - elapsed
+		print "time left: %i" % remaintime
+		time.sleep(1)
+		if ((remaintime % 60 == 0) or 
+			((remaintime < 180) and (remaintime % 30 == 0)) or 
+			((remaintime < 60) and (remaintime % 10 == 0)) or 
+			((remaintime < 30) and (remaintime % 5 == 0))):
+				saytime(remaintime)
 
 doorTime = 0.0
 fridgebell = pygame.mixer.Sound("bell.wav")
 fridgebell_playing = False
+runTimer = False
 def doorThread():
 	global doorTime
+	global runTimer
 	fridgeTime = 0
 	doorPress = 0
+	auxPress = 0
 	alertSubproc = None
 	while True:
 		if GPIO.input(EXIT_PIN):
@@ -110,6 +165,17 @@ def doorThread():
 				fridgebell.stop()
 			except:
 				print "sound stop failed"
+		if GPIO.input(AUX_PIN):
+			auxPress += 1
+			if auxPress == AUX_PRESS_TIME:
+				if runTimer:
+					runTimer = False
+				else:
+					runTimer = True
+					thread.start_new_thread(timerThread, ())
+					print "starting timer"
+		else:
+			auxPress = 0	
 		time.sleep(0.05)
 thread.start_new_thread(doorThread, ())
 

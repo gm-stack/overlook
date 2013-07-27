@@ -4,19 +4,20 @@ import os
 import time
 pygame.mixer.pre_init(44100,-16,2,256)
 pygame.mixer.init()
-sounds = {}
-wavlist = os.listdir("ingress")
-for wav in wavlist:
-	if wav.endswith(".ogg"):
-		wav2 = wav
-		if wav.startswith("speech_number_"):
-			wav2 = int(wav2[14:17])
+
+tea_sounds = {}
+tea_wavlist = os.listdir("ingress")
+for snd in tea_wavlist:
+	if snd.endswith(".ogg"):
+		snd_name = snd
+		if snd_name.startswith("speech_number_"):
+			snd_name = int(snd_name[14:17])
 		else:
-			wav2 = wav2[7:-4]
-		sounds[wav2] = pygame.mixer.Sound("ingress/" + wav)
+			snd_name = snd_name[7:-4]
+		tea_sounds[snd_name] = pygame.mixer.Sound("ingress/" + snd)
 
 def playwait(sound):
-	sounds[sound].play()
+	tea_sounds[sound].play()
 	while pygame.mixer.get_busy():
 		time.sleep(0.1)
 
