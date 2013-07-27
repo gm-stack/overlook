@@ -138,13 +138,13 @@ def checkCard(tagID):
 	result = cursor.fetchone()
 	if result:
 		if result[0]:
-			if not soundList:
-				print "creating new soundList"
-				soundList = sounds.keys()
-				random.shuffle(soundList)
-			sounds[soundList.pop()].play()
-			print "valid card, unlocking door for %s" % result[1]
 			try:
+				if not soundList:
+					print "creating new soundList"
+					soundList = sounds.keys()
+					random.shuffle(soundList)
+				sounds[soundList.pop()].play()
+				print "valid card, unlocking door for %s" % result[1]
 				irc.tell(channel, ("Unlocking door for user %s with a %s" % (result[1], result[2])).encode("ascii",errors="ignore"))
 			except:
 				print sys.exc_info()
