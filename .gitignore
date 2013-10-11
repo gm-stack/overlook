@@ -3,3 +3,5 @@
 doorlock.ini
 *.wav
 cards.db
+*.ogg
+.DS_Store
