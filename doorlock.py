@@ -12,9 +12,15 @@ import os
 import random
 import subprocess
 import shlex
+import socket
 from ircasync import *
 from rdm880 import *
 import sqlite3
+try:
+	import json
+except ImportError: # python <2.6
+	import simplejson as json
+
 
 config = ConfigParser.ConfigParser()
 config.read("doorlock.ini")
@@ -43,6 +49,11 @@ conn = sqlite3.connect("cards.db")
 cursor = conn.cursor()
 print "cards db opened"
 opentime = config.getint("gpio","opentime")
+
+MCAST_GROUP = (config.get('mcast', 'ip'), config.getint('mcast', 'port'))
+mcast_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+mcast_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+
 
 try:
 	pygame.mixer.pre_init(44100,-16,2,256)
@@ -75,6 +86,24 @@ except:
 ALERT_COMMAND = shlex.split(config.get("alert","command"))
 ALERT_PRESS_TIME = config.getint("alert","presstime")
 AUX_PRESS_TIME = 10
+
+def send_mcast_message(**kwargs):
+	"""
+	Sends a multicast UDP notification to the local network.
+	
+	This encodes all arguments as a dict, and serialises it as JSON.
+	
+	This function silently fails.
+	"""
+	global mcast_sock
+	global MCAST_GROUP
+
+	d = json.dumps(kwargs)
+	try:
+		mcast_sock.send(d, MCAST_GROUP)
+	except:
+		pass
+
 
 def playwait(sound):
 	tea_sounds[sound].play()
@@ -144,6 +173,8 @@ def doorThread():
 					irc.tell(channel, "Unlocking door for exiting user")
 				except:
 					pass
+				
+				send_mcast_message(event='exitButton')
 		else:
 			doorPress = 0	
 		if (time.time() - doorTime) < 0:
@@ -153,6 +184,7 @@ def doorThread():
 		if GPIO.input(FRIDGE_PIN):
 			fridgeTime += 1
 			print "fridge has been open for %f seconds" % (fridgeTime/20.0)
+			send_mcast_message(event='fridgeAlarm', time=fridgeTime/20.0)
 			if fridgeTime == 30*20:
 				print "playing bell"
 				try:
@@ -160,11 +192,14 @@ def doorThread():
 				except:
 					print "sound play failed"
 		else:
+			if fridgeTime > 0:
+				send_mcast_message(event='fridgeAlarmStop')
 			fridgeTime = 0.0
 			try:
 				fridgebell.stop()
 			except:
 				print "sound stop failed"
+
 		if GPIO.input(AUX_PIN):
 			auxPress += 1
 			if auxPress == AUX_PRESS_TIME:
@@ -212,6 +247,8 @@ def checkCard(tagID):
 				sounds[soundList.pop()].play()
 				print "valid card, unlocking door for %s" % result[1]
 				irc.tell(channel, ("Unlocking door for user %s with a %s" % (result[1], result[2])).encode("ascii",errors="ignore"))
+				send_mcast_message(event='doorUnlock', user=result[1], label=result[2], id=tagID)
+
 			except:
 				print sys.exc_info()
 			#if result['soundfile']:
@@ -219,12 +256,15 @@ def checkCard(tagID):
 			doorTime = time.time() + opentime
 		else:
 			print "usage of disabled card %s for user %s" % (tagID, result[1])
+			send_mcast_message(event='disabledCard', user=result[1], label=result[2], id=tagID)
 	else:
 		print "unknown card %s" % tagID
 		try:
 			irc.tell(channel, ("Unknown card %s" % tagID).encode("ascii",errors="ignore"))
 		except:
 			print sys.exc_info()
+		
+		send_mcast_message(event='unknownCard', id=tagID)
 
 prevcardid = None
 while True:
