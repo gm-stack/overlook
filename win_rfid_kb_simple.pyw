@@ -3,11 +3,17 @@ from rdm880 import *
 import time
 import win32com.client
 import sys
+import winsound
 from argparse import ArgumentParser
+
 
 shell = win32com.client.Dispatch("WScript.Shell")
 
+
 def checkCard(cardid, base, prefix, suffix):
+	"""
+	Called when a card is scanned by the reader.
+	"""
 	if base == 2:
 		o = ''.join((bin(x)[2:].rjust(8, '0') for x in cardid))
 	elif base == 8:
@@ -39,7 +45,10 @@ def main():
 	parser.add_argument('--suffix', '-s',
 		default='{enter}',
 		help='Keys to send after the RFID card ID (default: %(default)r)')
-	
+		
+	parser.add_argument('--beep', '-t',
+		default='bell',
+		help='Plays a tone after a successful scan from the reader, as (frequency,duration_ms).  Set to "none" to disable beeping, or "bell" to play the default system sound (normally ding.wav).  (default: %(default)r)')	
 	
 	group = parser.add_mutually_exclusive_group()
 	
@@ -54,6 +63,15 @@ def main():
 	
 	options = parser.parse_args()
 	
+	# define a "beep function".
+	if options.beep == 'none':
+		beepfn = lambda: False
+	elif options.beep == 'bell':
+		beepfn = winsound.MessageBeep
+	else:
+		freq, dur = [int(x) for x in options.beep.split(',', 2)]
+		beepfn = lambda: winsound.Beep(freq, dur)
+
 	base = 8
 	if options.bin:
 		base = 2
@@ -77,6 +95,7 @@ def main():
 						if cardid != prevcardid:
 							prevcardid = cardid
 							checkCard(cardid, base, options.prefix, options.suffix)
+							beepfn()
 					else:
 						prevcardid = None
 					time.sleep(0.1)
@@ -85,7 +104,11 @@ def main():
 				except:
 					print sys.exc_info()[0]
 					break
+		except KeyboardInterrupt:
+			print "Got control-c, quitting!"
+			break
 		except:
+			# these are other errors that we should just swallow
 			pass
 
 if __name__ == '__main__':
