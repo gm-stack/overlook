@@ -100,7 +100,7 @@ def send_mcast_message(**kwargs):
 
 	d = json.dumps(kwargs)
 	try:
-		mcast_sock.send(d, MCAST_GROUP)
+		mcast_sock.sendto(d, MCAST_GROUP)
 	except:
 		pass
 
